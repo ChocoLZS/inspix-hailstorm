@@ -17,7 +17,7 @@ import (
 )
 
 const MAX_CONCURRENCY = 10
-const MAX_RETRIES = 3
+const MAX_RETRIES = 10
 const ORIGIN = "https://assets.link-like-lovelive.app"
 
 var (
@@ -29,7 +29,7 @@ var (
 		// Timeout seconds for downloading a single file.
 		// As of 2024.2, the largest file size is 363MB (one of the feslive videos),
 		// make sure this value is large enough for downloading large files.
-		Timeout:   1200 * time.Second,
+		Timeout:   3600 * time.Second,
 		Transport: transport,
 	}
 )

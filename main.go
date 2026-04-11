@@ -97,6 +97,7 @@ func main() {
 	fMaster := flag.Bool("master", false, "Only generate masterdata from existing cache/plain without downloading.")
 	fKeepPath := flag.Bool("keep-path", false, "Imitate url download path on file system for assets.")
 	fPlatform := flag.String("platform", manifest.PlatformAndroid, "Resource platform to use: android or ios.")
+	fNoDecrypt := flag.Bool("no-decrypt", false, "Download or keep encrypted raw assets only and skip cache/plain generation.")
 	fClientVersion := flag.String("client-version", "", "Specify client version manually.")
 	fResInfo := flag.String("res-info", "", "Specify resource info manually.")
 	fFilterRegex := flag.String("filter-regex", "", "Only download assets that match the regex pattern. eg. --filter-regex=\"bgm_.*\"")
@@ -113,6 +114,11 @@ func main() {
 	}
 
 	if *fConvert {
+		if *fNoDecrypt {
+			rich.Info("Convert mode with -no-decrypt: skipping cache/plain generation.")
+			return
+		}
+
 		rich.Info("Convert mode: generating cache/plain from existing cache/assets...")
 
 		// Read existing catalog if it exists
@@ -312,6 +318,14 @@ func main() {
 
 	// download all assets
 	network.DownloadAssetsAsync(catalog, assetsSaveDir, platform, fKeepPath)
+
+	if *fNoDecrypt {
+		rich.Info("Raw-only mode: encrypted assets downloaded and decryption was skipped.")
+		if _, err = os.Create(updatedFlagFile); err != nil {
+			panic(err)
+		}
+		return
+	}
 
 	// decrypt all assets
 	manifest.DecryptAllAssets(catalog, decrpytedAssetsSaveDir, assetsSaveDir)
