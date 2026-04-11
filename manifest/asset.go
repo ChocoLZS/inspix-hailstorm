@@ -58,11 +58,29 @@ func ResourcePath(resourceType uint32, platform string) string {
 	return RAW_STR
 }
 
+func shardDirName(realName string) string {
+	if len(realName) < 2 {
+		return realName
+	}
+	return realName[:2]
+}
+
+func ManifestDownloadDir(baseDir string, realName string, keepPath bool) string {
+	if !keepPath {
+		return baseDir
+	}
+	return path.Join(baseDir, shardDirName(realName))
+}
+
+func ManifestDownloadPath(baseDir string, realName string, keepPath bool) string {
+	return path.Join(ManifestDownloadDir(baseDir, realName, keepPath), realName)
+}
+
 func EntryDownloadDir(baseDir string, entry *Entry, platform string, keepPath bool) string {
 	if !keepPath {
 		return baseDir
 	}
-	return path.Join(baseDir, ResourcePath(entry.ResourceType, platform), entry.RealName[:2])
+	return path.Join(baseDir, ResourcePath(entry.ResourceType, platform), shardDirName(entry.RealName))
 }
 
 func EntryDownloadPath(baseDir string, entry *Entry, platform string, keepPath bool) string {

@@ -77,7 +77,7 @@ func DownloadManifestSyncWithPlatform(realName string, saveDir string, platform 
 		ResourceType: 999,
 		StrLabelCrc:  "Manifest",
 	}
-	saveToDir := manifest.EntryDownloadDir(saveDir, entry, platform, keepPath)
+	saveToDir := manifest.ManifestDownloadDir(saveDir, realName, keepPath)
 	if err := os.MkdirAll(saveToDir, 0755); err != nil {
 		panic(err)
 	}

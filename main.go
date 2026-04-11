@@ -236,12 +236,7 @@ func main() {
 	// init manifest
 	mani := new(manifest.Manifest)
 	mani.Init(resInfo, clientVersion, platform)
-	manifestEntry := &manifest.Entry{
-		RealName:     mani.RealName,
-		ResourceType: 999,
-		StrLabelCrc:  "Manifest",
-	}
-	manifestPath := manifest.EntryDownloadPath(manifestSaveDir, manifestEntry, platform, *fKeepPath)
+	manifestPath := manifest.ManifestDownloadPath(manifestSaveDir, mani.RealName, *fKeepPath)
 
 	// download catalog
 	network.DownloadManifestSyncWithPlatform(mani.RealName, manifestSaveDir, platform, *fKeepPath)
