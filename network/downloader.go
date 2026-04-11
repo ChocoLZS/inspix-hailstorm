@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"sync"
 	"time"
 
@@ -71,17 +70,18 @@ func DownloadManifestSync(realName string, saveDir string) {
 	rich.Info("Manifest is successfully downloaded.")
 }
 
-func DownloadManifestSyncWithPlatform(realName string, saveDir string, platform string) {
+func DownloadManifestSyncWithPlatform(realName string, saveDir string, platform string, keepPath bool) {
 	counter := &SafeCounter{}
 	entry := &manifest.Entry{
 		RealName:     realName,
 		ResourceType: 999,
 		StrLabelCrc:  "Manifest",
 	}
-	if err := os.MkdirAll(saveDir, 0755); err != nil {
+	saveToDir := manifest.EntryDownloadDir(saveDir, entry, platform, keepPath)
+	if err := os.MkdirAll(saveToDir, 0755); err != nil {
 		panic(err)
 	}
-	downloadOne(entry, saveDir, platform, assetHeader, nil, counter, 1)
+	downloadOne(entry, saveToDir, platform, assetHeader, nil, counter, 1)
 	rich.Info("Manifest is successfully downloaded.")
 }
 
@@ -90,6 +90,7 @@ func DownloadAssetsAsync(catalog *manifest.Catalog, downloadDir string, platform
 	sem := semaphore.NewWeighted(MAX_CONCURRENCY)
 	dlAmount := len(catalog.Entries)
 	counter := &SafeCounter{}
+	shouldKeepPath := keepPath != nil && *keepPath
 	if err := os.MkdirAll(downloadDir, 0755); err != nil {
 		panic(err)
 	}
@@ -102,9 +103,8 @@ func DownloadAssetsAsync(catalog *manifest.Catalog, downloadDir string, platform
 		//   continue
 		// }
 		saveToDir := downloadDir
-		if *keepPath {
-			resType := resourcePath(entry.ResourceType, platform)
-			saveToDir = path.Join(downloadDir, resType, entry.RealName[:2])
+		if shouldKeepPath {
+			saveToDir = manifest.EntryDownloadDir(downloadDir, &entry, platform, true)
 			if err := os.MkdirAll(saveToDir, 0755); err != nil {
 				panic(err)
 			}
@@ -187,15 +187,8 @@ func downloadOne(
 	rich.Panic("Max retries exhausted when downloading %v. Will be stopping process.", request.URL)
 }
 
-func resourcePath(resourceType uint32, platform string) string {
-	if resourceType <= 1 {
-		return manifest.NormalizePlatform(platform)
-	}
-	return "raw"
-}
-
 func prepareRequest(entry *manifest.Entry, platform string, header http.Header) *http.Request {
-	resType := resourcePath(entry.ResourceType, platform)
+	resType := manifest.ResourcePath(entry.ResourceType, platform)
 	url := fmt.Sprintf("%v/%v/%v/%v", ORIGIN, resType, entry.RealName[:2], entry.RealName)
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {

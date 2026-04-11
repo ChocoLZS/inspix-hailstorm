@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strings"
 
 	"vertesan/hailstorm/crypto"
@@ -50,7 +51,25 @@ func NormalizePlatform(platform string) string {
 	}
 }
 
-func DecryptAllAssets(catalog *Catalog, dstDir string, srcDir string) {
+func ResourcePath(resourceType uint32, platform string) string {
+	if resourceType <= 1 {
+		return NormalizePlatform(platform)
+	}
+	return RAW_STR
+}
+
+func EntryDownloadDir(baseDir string, entry *Entry, platform string, keepPath bool) string {
+	if !keepPath {
+		return baseDir
+	}
+	return path.Join(baseDir, ResourcePath(entry.ResourceType, platform), entry.RealName[:2])
+}
+
+func EntryDownloadPath(baseDir string, entry *Entry, platform string, keepPath bool) string {
+	return path.Join(EntryDownloadDir(baseDir, entry, platform, keepPath), entry.RealName)
+}
+
+func DecryptAllAssets(catalog *Catalog, dstDir string, srcDir string, platform string, keepPath bool) {
 	counter := 0
 	amount := len(catalog.Entries)
 
@@ -70,7 +89,7 @@ func DecryptAllAssets(catalog *Catalog, dstDir string, srcDir string) {
 		//   continue
 		// }
 
-		rawFile, err := os.Open(srcDir + "/" + entry.RealName)
+		rawFile, err := os.Open(EntryDownloadPath(srcDir, &entry, platform, keepPath))
 		if err != nil {
 			panic(err)
 		}

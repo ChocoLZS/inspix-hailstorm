@@ -95,13 +95,14 @@ func main() {
 	fTestSub := flag.Bool("test-sub", false, "Parse the manifest catalog, download one probe file from the first subdir, and exit.")
 	fConvert := flag.Bool("convert", false, "Only generate cache/plain from existing cache/assets without downloading.")
 	fMaster := flag.Bool("master", false, "Only generate masterdata from existing cache/plain without downloading.")
-	fKeepPath := flag.Bool("keep-path", false, "Imitate url download path on file system for assets.")
+	fKeepPath := flag.Bool("keep-path", false, "Imitate URL download path on file system for manifest and assets.")
 	fPlatform := flag.String("platform", manifest.PlatformAndroid, "Resource platform to use: android or ios.")
 	fNoDecrypt := flag.Bool("no-decrypt", false, "Download or keep encrypted raw assets only and skip cache/plain generation.")
 	fClientVersion := flag.String("client-version", "", "Specify client version manually.")
 	fResInfo := flag.String("res-info", "", "Specify resource info manually.")
 	fFilterRegex := flag.String("filter-regex", "", "Only download assets that match the regex pattern. eg. --filter-regex=\"bgm_.*\"")
 	flag.Parse()
+	platform := manifest.NormalizePlatform(*fPlatform)
 
 	if *fAnalyze {
 		doAnalyze()
@@ -136,7 +137,7 @@ func main() {
 		}
 
 		// Only decrypt existing assets
-		manifest.DecryptAllAssets(catalog, decrpytedAssetsSaveDir, assetsSaveDir)
+		manifest.DecryptAllAssets(catalog, decrpytedAssetsSaveDir, assetsSaveDir, platform, *fKeepPath)
 
 		rich.Info("Conversion completed.")
 		return
@@ -204,7 +205,6 @@ func main() {
 			panic(err)
 		}
 	}
-	platform := manifest.NormalizePlatform(*fPlatform)
 	clientVersion := *fClientVersion
 	resInfo := *fResInfo
 	if clientVersion == "" {
@@ -236,14 +236,20 @@ func main() {
 	// init manifest
 	mani := new(manifest.Manifest)
 	mani.Init(resInfo, clientVersion, platform)
+	manifestEntry := &manifest.Entry{
+		RealName:     mani.RealName,
+		ResourceType: 999,
+		StrLabelCrc:  "Manifest",
+	}
+	manifestPath := manifest.EntryDownloadPath(manifestSaveDir, manifestEntry, platform, *fKeepPath)
 
 	// download catalog
-	network.DownloadManifestSyncWithPlatform(mani.RealName, manifestSaveDir, platform)
+	network.DownloadManifestSyncWithPlatform(mani.RealName, manifestSaveDir, platform, *fKeepPath)
 	if *fTest {
-		rich.Info("Test mode: manifest catalog downloaded to %q and parsing was skipped.", fmt.Sprintf("%v/%v", manifestSaveDir, mani.RealName))
+		rich.Info("Test mode: manifest catalog downloaded to %q and parsing was skipped.", manifestPath)
 		return
 	}
-	catalogFile, err := os.Open(fmt.Sprintf("%v/%v", manifestSaveDir, mani.RealName))
+	catalogFile, err := os.Open(manifestPath)
 	if err != nil {
 		panic(err)
 	}
@@ -255,8 +261,10 @@ func main() {
 	if err = catalogFile.Close(); err != nil {
 		panic(err)
 	}
-	if err = os.Remove(fmt.Sprintf("%v/%v", manifestSaveDir, mani.RealName)); err != nil {
-		panic(err)
+	if !*fKeepPath {
+		if err = os.Remove(manifestPath); err != nil {
+			panic(err)
+		}
 	}
 
 	if *fTestSub {
@@ -328,7 +336,7 @@ func main() {
 	}
 
 	// decrypt all assets
-	manifest.DecryptAllAssets(catalog, decrpytedAssetsSaveDir, assetsSaveDir)
+	manifest.DecryptAllAssets(catalog, decrpytedAssetsSaveDir, assetsSaveDir, platform, *fKeepPath)
 
 	// convert db files to yaml
 	if err := os.MkdirAll(dbSaveDir, 0755); err != nil {
@@ -375,7 +383,7 @@ func main() {
 		panic(err)
 	}
 
-	if !*fKeepRaw {
+	if !*fKeepRaw && !*fKeepPath {
 		if err := os.RemoveAll(assetsSaveDir); err != nil {
 			panic(err)
 		}
