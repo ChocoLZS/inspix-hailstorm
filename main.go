@@ -236,10 +236,14 @@ func main() {
 	// init manifest
 	mani := new(manifest.Manifest)
 	mani.Init(resInfo, clientVersion, platform)
-	manifestPath := manifest.ManifestDownloadPath(manifestSaveDir, mani.RealName, *fKeepPath)
+	manifestDownloadDir := manifestSaveDir
+	if *fKeepPath {
+		manifestDownloadDir = assetsSaveDir
+	}
+	manifestPath := manifest.ManifestDownloadPath(manifestDownloadDir, mani.RealName, *fKeepPath)
 
 	// download catalog
-	network.DownloadManifestSyncWithPlatform(mani.RealName, manifestSaveDir, platform, *fKeepPath)
+	network.DownloadManifestSyncWithPlatform(mani.RealName, manifestDownloadDir, platform, *fKeepPath)
 	if *fTest {
 		rich.Info("Test mode: manifest catalog downloaded to %q and parsing was skipped.", manifestPath)
 		return

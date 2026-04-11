@@ -69,7 +69,7 @@ func ManifestDownloadDir(baseDir string, realName string, keepPath bool) string 
 	if !keepPath {
 		return baseDir
 	}
-	return path.Join(baseDir, shardDirName(realName))
+	return path.Join(baseDir, RAW_STR, shardDirName(realName))
 }
 
 func ManifestDownloadPath(baseDir string, realName string, keepPath bool) string {
