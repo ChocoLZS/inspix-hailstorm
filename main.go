@@ -411,10 +411,4 @@ func main() {
 	if _, err = os.Create(updatedFlagFile); err != nil {
 		panic(err)
 	}
-
-	if !*fKeepRaw && !*fKeepPath {
-		if err := os.RemoveAll(assetsSaveDir); err != nil {
-			panic(err)
-		}
-	}
 }
