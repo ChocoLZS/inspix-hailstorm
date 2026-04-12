@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 
@@ -96,6 +97,8 @@ func main() {
 	fConvert := flag.Bool("convert", false, "Only generate cache/plain from existing cache/assets without downloading.")
 	fMaster := flag.Bool("master", false, "Only generate masterdata from existing cache/plain without downloading.")
 	fKeepPath := flag.Bool("keep-path", false, "Imitate URL download path on file system for manifest and assets.")
+	fOutDir := flag.String("out-dir", ".", "Base output directory for cache/ and masterdata/.")
+	fOutCacheDir := flag.String("out-cache-dir", "", "Override cache/ output directory (default: --out-dir/cache).")
 	fPlatform := flag.String("platform", manifest.PlatformAndroid, "Resource platform to use: android or ios.")
 	fNoDecrypt := flag.Bool("no-decrypt", false, "Download or keep encrypted raw assets only and skip cache/plain generation.")
 	fClientVersion := flag.String("client-version", "", "Specify client version manually.")
@@ -104,13 +107,40 @@ func main() {
 	flag.Parse()
 	platform := manifest.NormalizePlatform(*fPlatform)
 
+	// Allow redirecting all outputs (cache/, masterdata/, etc.) under custom directories.
+	outDir := *fOutDir
+	if outDir == "" {
+		outDir = "."
+	}
+	cacheDir := *fOutCacheDir
+	if cacheDir == "" {
+		cacheDir = filepath.Join(outDir, "cache")
+	}
+	manifestSaveDir = cacheDir
+	assetsSaveDir = filepath.Join(cacheDir, "assets")
+	decrpytedAssetsSaveDir = filepath.Join(cacheDir, "plain")
+	dbSaveDir = filepath.Join(outDir, "masterdata")
+	catalogVersionFile = filepath.Join(cacheDir, "currentVersion.txt")
+	catalogJsonFile = filepath.Join(cacheDir, "catalog.json")
+	catalogJsonFilePrev = filepath.Join(cacheDir, "catalog_prev.json")
+	catalogJsonDiffFile = filepath.Join(cacheDir, "catalog_diff.json")
+	updatedFlagFile = filepath.Join(cacheDir, "updated")
+	analyser.SetCacheDir(cacheDir)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		panic(err)
+	}
+
 	if *fAnalyze {
 		doAnalyze()
 		return
 	}
 
 	if *fAnalyzeClientRes {
-		analyser.AnalyzeClientRes("client-res.json", "cache/client_res_report.json", "cache/client_res_summary.md")
+		analyser.AnalyzeClientRes(
+			"client-res.json",
+			filepath.Join(cacheDir, "client_res_report.json"),
+			filepath.Join(cacheDir, "client_res_summary.md"),
+		)
 		return
 	}
 
@@ -173,7 +203,7 @@ func main() {
 			if entry.StrTypeCrc != "tsv" {
 				continue
 			}
-			dbFile, err := os.Open(decrpytedAssetsSaveDir + "/" + entry.StrLabelCrc)
+			dbFile, err := os.Open(filepath.Join(decrpytedAssetsSaveDir, entry.StrLabelCrc))
 			if err != nil {
 				rich.Warning("Database file %q not found in cache/plain, skipping.", entry.StrLabelCrc)
 				continue
@@ -190,7 +220,7 @@ func main() {
 				rich.Error(err.Error())
 				continue
 			}
-			utils.WriteToYamlFile(rows, dbSaveDir+"/"+reflect.TypeOf(ins).Name()+".yaml")
+			utils.WriteToYamlFile(rows, filepath.Join(dbSaveDir, reflect.TypeOf(ins).Name()+".yaml"))
 		}
 
 		if errCount > 0 {
@@ -346,7 +376,7 @@ func main() {
 		if entry.StrTypeCrc != "tsv" {
 			continue
 		}
-		dbFile, err := os.Open(decrpytedAssetsSaveDir + "/" + entry.StrLabelCrc)
+		dbFile, err := os.Open(filepath.Join(decrpytedAssetsSaveDir, entry.StrLabelCrc))
 		if err != nil {
 			panic(err)
 		}
@@ -364,7 +394,7 @@ func main() {
 			continue
 		}
 		// marshal catalog to a yaml file
-		utils.WriteToYamlFile(rows, dbSaveDir+"/"+reflect.TypeOf(ins).Name()+".yaml")
+		utils.WriteToYamlFile(rows, filepath.Join(dbSaveDir, reflect.TypeOf(ins).Name()+".yaml"))
 	}
 	cvf, err := os.Create(catalogVersionFile)
 	if err != nil {
